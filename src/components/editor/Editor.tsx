@@ -23,7 +23,7 @@ const STEPS = [
   { id: 7, title: 'Certifications' },
   { id: 8, title: 'Additional' },
   { id: 9, title: 'Design' },
-  { id: 10, title: 'AI Optimize' },
+  { id: 10, title: 'Review' },
 ];
 
 export default function Editor() {

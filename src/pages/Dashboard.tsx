@@ -5,8 +5,8 @@ import Preview from '../components/preview/Preview';
 import SettingsPage from './SettingsPage';
 import TemplatesPage from './TemplatesPage';
 import { useResume } from '../hooks/useResume';
-// @ts-ignore
-import html2pdf from 'html2pdf.js';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 type Panel = 'editor' | 'settings' | 'templates';
 type MobileTab = 'edit' | 'preview';
@@ -42,40 +42,229 @@ export default function Dashboard() {
     return () => observer.disconnect();
   }, []);
 
-  const exportToPDF = async () => {
+  const captureCanvas = async (): Promise<HTMLCanvasElement | null> => {
     const el = document.getElementById('resume-preview-content');
-    if (!el) return;
+    if (!el) {
+      alert('Preview not found. Switch to the Editor tab first.');
+      return null;
+    }
+
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        ignoreElements: (node) => node.tagName === 'SCRIPT' || node.tagName === 'NOSCRIPT',
+        onclone: (clonedDoc) => {
+          // Remove ALL SVGs — react-icons SVGs trigger oklch parsing in html2canvas
+          // The resume content is text-based so icons are decorative only
+          clonedDoc.querySelectorAll('svg').forEach(n => n.remove());
+
+          // Remove ALL external/internal stylesheets — eliminates every oklch reference
+          clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(n => n.remove());
+
+          // 2. Inject a minimal safe CSS reset that covers what the resume needs.
+          //    All layout classes (flex, grid, gap, padding, font-size) are re-declared
+          //    using plain rgb/hex — no oklch anywhere.
+          const css = `
+            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, Helvetica, sans-serif; background: #fff; }
+            .flex { display: flex; }
+            .flex-col { flex-direction: column; }
+            .flex-1 { flex: 1 1 0%; }
+            .flex-wrap { flex-wrap: wrap; }
+            .shrink-0 { flex-shrink: 0; }
+            .grid { display: grid; }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .col-span-2 { grid-column: span 2 / span 2; }
+            .items-center { align-items: center; }
+            .items-start { align-items: flex-start; }
+            .items-baseline { align-items: baseline; }
+            .items-end { align-items: flex-end; }
+            .justify-between { justify-content: space-between; }
+            .justify-center { justify-content: center; }
+            .text-center { text-align: center; }
+            .relative { position: relative; }
+            .absolute { position: absolute; }
+            .inset-0 { top:0;right:0;bottom:0;left:0; }
+            .overflow-hidden { overflow: hidden; }
+            .break-inside-avoid { break-inside: avoid; }
+            .whitespace-pre-wrap { white-space: pre-wrap; }
+            .whitespace-nowrap { white-space: nowrap; }
+            .italic { font-style: italic; }
+            .uppercase { text-transform: uppercase; }
+            .underline { text-decoration: underline; }
+            .rounded { border-radius: 4px; }
+            .rounded-full { border-radius: 9999px; }
+            .rounded-xl { border-radius: 12px; }
+            .rounded-lg { border-radius: 8px; }
+            .border { border-width: 1px; border-style: solid; }
+            .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+            .border-l-2 { border-left-width: 2px; border-left-style: solid; }
+            .border-b-2 { border-bottom-width: 2px; border-bottom-style: solid; }
+            .border-2 { border-width: 2px; border-style: solid; }
+            .object-cover { object-fit: cover; }
+            .w-full { width: 100%; }
+            .h-full { height: 100%; }
+            .min-h-full { min-height: 100%; }
+            .leading-none { line-height: 1; }
+            .leading-tight { line-height: 1.25; }
+            .leading-snug { line-height: 1.375; }
+            .leading-relaxed { line-height: 1.625; }
+            .transition { transition: none; }
+            .hover\\:opacity-75:hover { opacity: 0.75; }
+            /* spacing */
+            .gap-1 { gap: 4px; } .gap-1\\.5 { gap: 6px; } .gap-2 { gap: 8px; }
+            .gap-2\\.5 { gap: 10px; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; }
+            .gap-5 { gap: 20px; } .gap-x-4 { column-gap: 16px; } .gap-x-5 { column-gap: 20px; }
+            .gap-y-1 { row-gap: 4px; } .gap-y-1\\.5 { row-gap: 6px; }
+            .mb-1 { margin-bottom: 4px; } .mb-1\\.5 { margin-bottom: 6px; }
+            .mb-2 { margin-bottom: 8px; } .mb-2\\.5 { margin-bottom: 10px; }
+            .mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; }
+            .mb-5 { margin-bottom: 20px; } .mb-6 { margin-bottom: 24px; }
+            .mb-7 { margin-bottom: 28px; } .mb-8 { margin-bottom: 32px; }
+            .mt-0\\.5 { margin-top: 2px; } .mt-1 { margin-top: 4px; }
+            .mt-1\\.5 { margin-top: 6px; } .mt-2 { margin-top: 8px; }
+            .ml-4 { margin-left: 16px; } .ml-5 { margin-left: 20px; }
+            .mx-auto { margin-left: auto; margin-right: auto; }
+            .p-2 { padding: 8px; } .p-3 { padding: 12px; }
+            .pb-1 { padding-bottom: 4px; } .pb-2 { padding-bottom: 8px; }
+            .pb-4 { padding-bottom: 16px; } .pb-5 { padding-bottom: 20px; }
+            .pt-2 { padding-top: 8px; } .pt-3 { padding-top: 12px; }
+            .pl-3 { padding-left: 12px; } .pl-5 { padding-left: 20px; }
+            /* font sizes */
+            .text-\\[9\\.5px\\] { font-size: 9.5px; }
+            .text-\\[10px\\] { font-size: 10px; }
+            .text-\\[10\\.5px\\] { font-size: 10.5px; }
+            .text-\\[11px\\] { font-size: 11px; }
+            .text-\\[11\\.5px\\] { font-size: 11.5px; }
+            .text-\\[12px\\] { font-size: 12px; }
+            .text-\\[12\\.5px\\] { font-size: 12.5px; }
+            .text-\\[16px\\] { font-size: 16px; }
+            .text-\\[20px\\] { font-size: 20px; }
+            .text-\\[26px\\] { font-size: 26px; }
+            .text-\\[28px\\] { font-size: 28px; }
+            .text-\\[30px\\] { font-size: 30px; }
+            .text-\\[32px\\] { font-size: 32px; }
+            /* font weights */
+            .font-light { font-weight: 300; }
+            .font-normal { font-weight: 400; }
+            .font-medium { font-weight: 500; }
+            .font-semibold { font-weight: 600; }
+            .font-bold { font-weight: 700; }
+            .font-black { font-weight: 900; }
+            /* tracking */
+            .tracking-tight { letter-spacing: -0.025em; }
+            .tracking-wide { letter-spacing: 0.025em; }
+            .tracking-wider { letter-spacing: 0.05em; }
+            .tracking-widest { letter-spacing: 0.1em; }
+            /* colors — safe rgb only */
+            .bg-white { background-color: #ffffff; }
+            .bg-zinc-50 { background-color: #fafafa; }
+            .text-white { color: #ffffff; }
+            .text-zinc-400 { color: #a1a1aa; }
+            .text-zinc-500 { color: #71717a; }
+            .text-zinc-600 { color: #52525b; }
+            .text-zinc-700 { color: #3f3f46; }
+            .text-zinc-800 { color: #27272a; }
+            .text-zinc-900 { color: #18181b; }
+            .border-zinc-100 { border-color: #f4f4f5; }
+            .border-zinc-200 { border-color: #e4e4e7; }
+            .shadow-md { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+            /* sizes */
+            .w-1 { width: 4px; } .w-2 { width: 8px; } .w-3 { width: 12px; }
+            .w-7 { width: 28px; } .w-8 { width: 32px; } .w-\\[8mm\\] { width: 8mm; }
+            .w-\\[60mm\\] { width: 60mm; } .w-\\[210mm\\] { width: 210mm; }
+            .w-14 { width: 56px; } .w-16 { width: 64px; } .w-20 { width: 80px; }
+            .h-1 { height: 4px; } .h-1\\.5 { height: 6px; } .h-2 { height: 8px; }
+            .h-3 { height: 12px; } .h-4 { height: 16px; } .h-px { height: 1px; }
+            .h-14 { height: 56px; } .h-16 { height: 64px; } .h-20 { height: 80px; }
+            .min-h-\\[297mm\\] { min-height: 297mm; }
+            .h-\\[3mm\\] { height: 3mm; }
+            /* box */
+            .box-border { box-sizing: border-box; }
+            /* padding shorthand for resume pages */
+            .p-\\[18mm\\] { padding: 18mm; }
+            .p-\\[20mm\\] { padding: 20mm; }
+            .p-\\[13mm\\] { padding: 13mm; }
+            .p-\\[8mm\\] { padding: 8mm; }
+            .px-\\[18mm\\] { padding-left: 18mm; padding-right: 18mm; }
+            .px-\\[14mm\\] { padding-left: 14mm; padding-right: 14mm; }
+            .py-\\[10mm\\] { padding-top: 10mm; padding-bottom: 10mm; }
+            .py-\\[12mm\\] { padding-top: 12mm; padding-bottom: 12mm; }
+            .py-\\[8mm\\] { padding-top: 8mm; padding-bottom: 8mm; }
+            /* rotate for svg */
+            .-rotate-90 { transform: rotate(-90deg); }
+            /* top/left/right/bottom */
+            .top-0 { top: 0; } .left-0 { left: 0; } .right-0 { right: 0; }
+            .bottom-0 { bottom: 0; }
+            .-left-\\[22px\\] { left: -22px; }
+            .top-1 { top: 4px; }
+          `;
+          const style = clonedDoc.createElement('style');
+          style.textContent = css;
+          clonedDoc.head.appendChild(style);
+        },
+      });
+      return canvas;
+    } catch (e) {
+      console.error('html2canvas error:', e);
+      throw e;
+    }
+  };
+
+  const exportToPDF = async () => {
     setExporting('pdf');
     try {
-      await html2pdf().set({
-        margin: 0, filename: 'resume.pdf',
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 3, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      }).from(el).save();
-    } finally { setExporting(null); }
+      const canvas = await captureCanvas();
+      if (!canvas) return;
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      // Scale image to fit A4
+      const imgW = pdfW;
+      const imgH = (canvas.height * pdfW) / canvas.width;
+      let y = 0;
+      // If content is taller than one page, add pages
+      if (imgH <= pdfH) {
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
+      } else {
+        let remaining = imgH;
+        while (remaining > 0) {
+          pdf.addImage(imgData, 'JPEG', 0, y === 0 ? 0 : -(imgH - remaining), imgW, imgH);
+          remaining -= pdfH;
+          if (remaining > 0) pdf.addPage();
+          y += pdfH;
+        }
+      }
+      pdf.save('resume.pdf');
+    } catch (e) {
+      console.error('PDF export error:', e);
+      alert('Export failed. Please try again.');
+    } finally {
+      setExporting(null);
+    }
   };
 
   const exportToImage = async () => {
-    const el = document.getElementById('resume-preview-content');
-    if (!el) return;
     setExporting('img');
     try {
-      // Use html2pdf canvas approach for image export
-      const canvas = document.createElement('canvas');
-      const scale = 3;
-      canvas.width = el.offsetWidth * scale;
-      canvas.height = el.offsetHeight * scale;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('No canvas context');
-      // Fallback: just export PDF as image via html2pdf
+      const canvas = await captureCanvas();
+      if (!canvas) return;
       const url = canvas.toDataURL('image/png');
       const a = document.createElement('a');
-      a.download = 'resume.png'; a.href = url; a.click();
-    } catch {
-      // Fallback: export as PDF
-      await exportToPDF();
-    } finally { setExporting(null); }
+      a.download = 'resume.png';
+      a.href = url;
+      a.click();
+    } catch (e) {
+      console.error('Image export error:', e);
+      alert('Export failed. Please try again.');
+    } finally {
+      setExporting(null);
+    }
   };
 
   const cycleTemplate = (dir: 1 | -1) => {
