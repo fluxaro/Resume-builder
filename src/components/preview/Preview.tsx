@@ -49,8 +49,8 @@ function Sec({ id, data, color, v = 'u' }: { id: string; data: ResumeData; color
       return (
         <section key="s">
           <H title="Summary" color={color} v={v} />
-          {data.summary && <p className="text-[11px] leading-relaxed text-zinc-700 whitespace-pre-wrap mb-2">{data.summary}</p>}
-          {data.coreCompetencies && <div className="bg-zinc-50 border border-zinc-100 rounded p-2"><p className="text-[10.5px] text-zinc-600 whitespace-pre-wrap leading-relaxed">{data.coreCompetencies}</p></div>}
+          {data.summary && <p className="text-[11px] leading-relaxed text-zinc-700 whitespace-pre-wrap break-words mb-2">{data.summary}</p>}
+          {data.coreCompetencies && <div className="bg-zinc-50 border border-zinc-100 rounded p-2"><p className="text-[10.5px] text-zinc-600 whitespace-pre-wrap break-words leading-relaxed">{data.coreCompetencies}</p></div>}
         </section>
       );
     case 'experience':
@@ -60,17 +60,17 @@ function Sec({ id, data, color, v = 'u' }: { id: string; data: ResumeData; color
           <H title="Experience" color={color} v={v} />
           <div className="flex flex-col gap-3">
             {data.experiences.map((e: Experience) => (
-              <div key={e.id} className="break-inside-avoid">
-                <div className="flex justify-between items-baseline">
-                  <span className="font-bold text-[12px] text-zinc-900">{e.role}</span>
-                  <span className="text-[10px] text-zinc-400 whitespace-nowrap">{e.startDate} – {e.isCurrent ? 'Present' : e.endDate}</span>
+              <div key={e.id} className="break-inside-avoid min-w-0">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="font-bold text-[12px] text-zinc-900 min-w-0 break-words">{e.role}</span>
+                  <span className="text-[10px] text-zinc-400 whitespace-nowrap shrink-0">{e.startDate} – {e.isCurrent ? 'Present' : e.endDate}</span>
                 </div>
-                <div className="flex justify-between text-[11px] mb-1">
-                  <span className="font-semibold" style={{ color }}>{e.company}</span>
-                  <span className="text-zinc-400 italic">{e.location}</span>
+                <div className="flex justify-between text-[11px] mb-1 gap-2">
+                  <span className="font-semibold min-w-0 break-words" style={{ color }}>{e.company}</span>
+                  <span className="text-zinc-400 italic shrink-0">{e.location}</span>
                 </div>
-                {e.description && <div className="text-[11px] text-zinc-700 whitespace-pre-wrap pl-3 border-l-2 leading-relaxed" style={{ borderColor: rgba(color, 0.25) }}>{e.description}</div>}
-                {e.technologies && <p className="text-[10px] text-zinc-400 mt-1"><span className="text-zinc-600 font-medium">Tech:</span> {e.technologies}</p>}
+                {e.description && <div className="text-[11px] text-zinc-700 whitespace-pre-wrap break-words pl-3 border-l-2 leading-relaxed" style={{ borderColor: rgba(color, 0.25) }}>{e.description}</div>}
+                {e.technologies && <p className="text-[10px] text-zinc-400 mt-1 break-words"><span className="text-zinc-600 font-medium">Tech:</span> {e.technologies}</p>}
               </div>
             ))}
           </div>
@@ -83,13 +83,13 @@ function Sec({ id, data, color, v = 'u' }: { id: string; data: ResumeData; color
           <H title="Projects" color={color} v={v} />
           <div className="flex flex-col gap-2.5">
             {data.projects.map((p: Project) => (
-              <div key={p.id} className="break-inside-avoid">
-                <div className="flex justify-between items-baseline">
-                  <span className="font-bold text-[12px] text-zinc-900">{p.name}{p.role && <span className="font-normal text-zinc-400 text-[10px] ml-1">({p.role})</span>}</span>
-                  {p.link && <a href={p.link.startsWith('http') ? p.link : `https://${p.link}`} target="_blank" rel="noreferrer" className="text-[10px] hover:underline" style={{ color }}>{p.link.replace(/^https?:\/\//, '')}</a>}
+              <div key={p.id} className="break-inside-avoid min-w-0">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="font-bold text-[12px] text-zinc-900 min-w-0 break-words">{p.name}{p.role && <span className="font-normal text-zinc-400 text-[10px] ml-1">({p.role})</span>}</span>
+                  {p.link && <a href={p.link.startsWith('http') ? p.link : `https://${p.link}`} target="_blank" rel="noreferrer" className="text-[10px] hover:underline shrink-0 ml-2 break-all" style={{ color }}>{p.link.replace(/^https?:\/\//, '')}</a>}
                 </div>
-                {p.description && <p className="text-[11px] text-zinc-700 whitespace-pre-wrap leading-relaxed">{p.description}</p>}
-                {p.technologies && <p className="text-[10px] text-zinc-400 mt-0.5"><span className="text-zinc-600 font-medium">Tech:</span> {p.technologies}</p>}
+                {p.description && <p className="text-[11px] text-zinc-700 whitespace-pre-wrap break-words leading-relaxed">{p.description}</p>}
+                {p.technologies && <p className="text-[10px] text-zinc-400 mt-0.5 break-words"><span className="text-zinc-600 font-medium">Tech:</span> {p.technologies}</p>}
               </div>
             ))}
           </div>
@@ -403,7 +403,7 @@ function T9({ data }: { data: ResumeData }) {
                   <span className="text-[10px] text-zinc-400">{e.startDate} – {e.isCurrent ? 'Present' : e.endDate}</span>
                 </div>
                 <span className="text-[11px] font-medium" style={{ color: c }}>{e.company}</span>
-                {e.description && <p className="text-[11px] text-zinc-600 whitespace-pre-wrap mt-0.5 leading-relaxed">{e.description}</p>}
+                {e.description && <p className="text-[11px] text-zinc-600 whitespace-pre-wrap break-words mt-0.5 leading-relaxed">{e.description}</p>}
               </div>
             ))}
           </div>
